@@ -47,6 +47,10 @@
 #define DMA_MAX_CHANNEL	4							//Maximum DMA channel used
 // --------- //
 
+// -- ADC -- //
+#define ADC_MAX_PORT	1							//Maximum number of ADC peripherals used
+// --------- //
+
 // -- SPI -- //
 #define SPI_MAX_PORT	2							//Maximum number of SPI peripherals used
 // --------- //

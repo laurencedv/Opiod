@@ -300,9 +300,9 @@ U8 opioidInit(void)
 
 
 	//Init the COM SPI
-//	spiSetConfig(COM0_SPI_ID,SPI_MODE_MASTER|SPI_ENHANCED_BUF|SPI_TX_BUF_INT_BUF_EMPTY|SPI_RX_BUF_INT_BUF_HALF_FULL);
-//	spiSetBaudRate(COM0_SPI_ID,5000000);
-//	spiStart(COM0_SPI_ID);
+	spiSetConfig(COM0_SPI_ID,SPI_MODE_MASTER|SPI_ENHANCED_BUF|SPI_TX_BUF_INT_BUF_EMPTY|SPI_RX_BUF_INT_BUF_HALF_FULL);
+	spiSetBaudRate(COM0_SPI_ID,5000000);
+	spiStart(COM0_SPI_ID);
 
 	//Detect presence
 
@@ -310,17 +310,17 @@ U8 opioidInit(void)
 
 	// -- COM1 Initialisation -- //
 	//Init the COM Uart
-	//errorCode = uartInit(COM1_UART_ID,UART_TX_INT_TSR_EMPTY|UART_RX_INT_DATA_READY|UART_MODE_8N1);
-	//if (errorCode == STD_EC_SUCCESS)
-	//	errorCode = uartSetBaudRate(COM1_UART_ID,OPIUM_COM_UART_MEDIUM_SPEED);
+	errorCode = uartInit(COM1_UART_ID,UART_TX_INT_TSR_EMPTY|UART_RX_INT_DATA_READY|UART_MODE_8N1);
+	if (errorCode == STD_EC_SUCCESS)
+		errorCode = uartSetBaudRate(COM1_UART_ID,OPIUM_COM_UART_MEDIUM_SPEED);
 
-	//if (errorCode != STD_EC_SUCCESS)
-	//	return errorCode;
+	if (errorCode != STD_EC_SUCCESS)
+		return errorCode;
 
 	//Init the COM SPI
-//	spiSetConfig(COM1_SPI_ID,SPI_MODE_MASTER|SPI_ENHANCED_BUF|SPI_TX_BUF_INT_BUF_EMPTY|SPI_RX_BUF_INT_BUF_HALF_FULL);
-//	spiSetBaudRate(COM0_SPI_ID,5000000);
-//	spiStart(COM0_SPI_ID);
+	spiSetConfig(COM1_SPI_ID,SPI_MODE_MASTER|SPI_ENHANCED_BUF|SPI_TX_BUF_INT_BUF_EMPTY|SPI_RX_BUF_INT_BUF_HALF_FULL);
+	spiSetBaudRate(COM0_SPI_ID,5000000);
+	spiStart(COM0_SPI_ID);
 
 	//Detect presence
 
@@ -343,31 +343,6 @@ U8 opioidInit(void)
 	// ===================================== //
 	
 	return errorCode;
-}
-
-/**
-* \fn		void GIOIndentifyCOM(U8 COMSocket)
-* @brief	Identify the new COM board on the designated COM Socket
-* @note
-* @arg		U8 COMSocket		COM Socket to check
-* @return	nothing
-*/
-void GIOIndentifyCOM(U8 COMSocket)
-{
-	// -- Select the correct COM Socket -- //
-	switch (COMSocket)
-	{
-		case 0:
-		{
-			
-			break;
-		}
-	}
-	// ----------------------------------- //
-
-	//Mark this COM Socket as inactive
-
-	//Read ADC
 }
 // ############################################## //
 
@@ -462,11 +437,7 @@ void __ISR(COM0_UART_VECTOR, IPL5SOFT) com0uartISR(void)
 
 void __ISR(RT_TIMER_VECTOR, IPL7SOFT) rtTimerISR(void)
 {
-	extern U32 sysTick;
-
-	togglePIN(COM0_IO0);
-
-	sysTick++;
+	rtISR();
 
 	intFastClearFlag(RT_TIMER_INT_ID);
 }

@@ -1,18 +1,20 @@
-build/default/production/_ext/1472/Opioid-A0.o: ../Opioid-A0.c \
- ../PIC32MX575_config.h ../hardware.h \
- D:/My\ Dropbox/Electro/PIC/Header/board/Opioid-revA0.h \
- D:/My\ Dropbox/Electro/PIC/Header/datatype_megaxone.h \
- D:/My\ Dropbox/Electro/PIC/Header/stddef_megaxone.h \
- D:/My\ Dropbox/Electro/PIC/Header/bitmanip_megaxone.h \
- D:/My\ Dropbox/Electro/PIC/Header/board/COM-RS485-revA0.h \
- D:/My\ Dropbox/Electro/PIC/Header/board/COM-NRF-revA0.h \
- D:/My\ Dropbox/Electro/PIC/C32/peripheral/pic32_clock.h ../hardware.h \
- D:/My\ Dropbox/Electro/PIC/Header/splitvar_megaxone.h \
- D:/My\ Dropbox/Electro/PIC/C32/peripheral/pic32_timer.h \
- D:/My\ Dropbox/Electro/PIC/C32/peripheral/pic32_uart.h \
- D:/My\ Dropbox/Electro/PIC/C32/soft/pic32_ringBuffer.h \
- D:/My\ Dropbox/Electro/PIC/C32/peripheral/op_interrupt.h \
- D:/My\ Dropbox/Electro/PIC/C32/peripheral/pic32_pps.h \
- D:/My\ Dropbox/Electro/PIC/C32/peripheral/op_output_compare.h \
- D:/My\ Dropbox/Electro/PIC/C32/peripheral/pic32_spi.h \
- D:/My\ Dropbox/Electro/PIC/C32/soft/pic32_realtime.h
+build/default/production/_ext/1472/Opioid-A0.o:  \
+../Opioid-A0.c  \
+ ../PIC32MX575_config.h  \
+../hardware.h  \
+ E:/Dropbox/Electro/Dev/PIClib/header/board/opioid-a0.h  \
+ E:/Dropbox/Electro/Dev/PIClib/header/definition/datatype_megaxone.h  \
+ E:/Dropbox/Electro/Dev/PIClib/header/definition/stddef_megaxone.h  \
+ E:/Dropbox/Electro/Dev/PIClib/header/tool/bitmanip_megaxone.h  \
+ E:/Dropbox/Electro/Dev/PIClib/header/board/com-rs485-a0.h  \
+ E:/Dropbox/Electro/Dev/PIClib/header/board/com-nrf-a0.h  \
+ E:/Dropbox/Electro/Dev/PIClib/lib/peripheral/pic32_clock.h  \
+../hardware.h  \
+ E:/Dropbox/Electro/Dev/PIClib/header/tool/splitvar_megaxone.h  \
+ E:/Dropbox/Electro/Dev/PIClib/lib/peripheral/pic32_timer.h  \
+ E:/Dropbox/Electro/Dev/PIClib/lib/peripheral/pic32_uart.h  \
+ E:/Dropbox/Electro/Dev/PIClib/lib/soft/pic32_ringBuffer.h  \
+ E:/Dropbox/Electro/Dev/PIClib/lib/peripheral/pic32_interrupt.h  \
+ E:/Dropbox/Electro/Dev/PIClib/lib/peripheral/pic32_output_compare.h  \
+ E:/Dropbox/Electro/Dev/PIClib/lib/peripheral/pic32_spi.h  \
+ E:/Dropbox/Electro/Dev/PIClib/lib/soft/pic32_realtime.h 
