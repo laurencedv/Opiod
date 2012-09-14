@@ -17,4 +17,6 @@ build/default/production/_ext/1472/Opioid-A0.o:  \
  E:/Dropbox/Electro/Dev/PIClib/lib/peripheral/pic32_interrupt.h  \
  E:/Dropbox/Electro/Dev/PIClib/lib/peripheral/pic32_output_compare.h  \
  E:/Dropbox/Electro/Dev/PIClib/lib/peripheral/pic32_spi.h  \
- E:/Dropbox/Electro/Dev/PIClib/lib/soft/pic32_realtime.h 
+ E:/Dropbox/Electro/Dev/PIClib/lib/soft/pic32_realtime.h  \
+ E:/Dropbox/Electro/Dev/OpIUM/op_general.h  \
+ E:/Dropbox/Electro/Dev/OpIUM/op_link_rs-485.h 

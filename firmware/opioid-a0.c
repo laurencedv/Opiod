@@ -21,11 +21,15 @@
 #include <peripheral/pic32_output_compare.h>
 #include <peripheral/pic32_interrupt.h>
 #include <peripheral/pic32_spi.h>
+#include <peripheral/pic32_adc.h>
 //#include <peripheral/pic32_pps.h>
 //#include <peripheral/pic32_dma.h>
 //#include <device/pic32_SN65HVD11.h>
 #include <soft/pic32_ringBuffer.h>
 #include <soft/pic32_realtime.h>
+
+//OpIUM
+#include <op_general.h>
 
 //Microchip's
 #include <stdlib.h>
@@ -54,9 +58,6 @@
 #define LED_R_SYSTICK_INTERVAL	10
 #define LED_G_SYSTICK_INTERVAL	15
 #define LED_B_SYSTICK_INTERVAL	40
-
-//COM RS-485
-
 // ############################################## //
 
 
@@ -83,20 +84,13 @@ U8 ledBlue = 0;
 U8 ledBlueDir = 0;
 extern U32 sysTick;
 
-U8 allocFlag = 0;
-U32 data = 0;
-tRBufCtl * testBufCtlPtr;
-tRBufCtl testBufCtl;
-U8 sourceArray[10] = {0xEE,1,2,3,4,5,6,7,8,9};
-U8 checkArray[10] = {0,0,0,0,0,0,0,0,0,0};
+U8 softCntTestID;
+U8 softCntTestFlag = 0xDD;
+U32 softCntTestPeriod = 100;
 
 // COM 0
 tSPISlaveControl * pCOM0SlaveControl = NULL;			//COM0 SPI Control structure
 tSPITransaction COM0ControlTransaction;
-
-// RAM
-tSPISlaveControl * pRAMSlaveControl = NULL;				//RAM SPI Control structure
-
 // ############################################## //
 
 
@@ -116,16 +110,19 @@ int main(void)
 
 
 	//* ----------- Testing Space ---------- *//
-	timerInit(TIMER_2,0);
-	ocSetConfig(OC_2,OC_MODE_PWM|OC_TIMER_2);
-	ocSetConfig(OC_3,OC_MODE_PWM|OC_TIMER_2);
-	ocSetConfig(OC_4,OC_MODE_PWM|OC_TIMER_2);
-	pwmSetPeriod(OC_2,1000);
-	pwmSetPeriod(OC_3,1000);
-	pwmSetPeriod(OC_4,1000);
-	ocStart(OC_2);
-	ocStart(OC_3);
-	ocStart(OC_4);
+	//timerInit(TIMER_2,0);
+	//ocSetConfig(OC_2,OC_MODE_PWM|OC_TIMER_2);
+	//ocSetConfig(OC_3,OC_MODE_PWM|OC_TIMER_2);
+	//ocSetConfig(OC_4,OC_MODE_PWM|OC_TIMER_2);
+	//pwmSetPeriod(OC_2,1000);
+	//pwmSetPeriod(OC_3,1000);
+	//pwmSetPeriod(OC_4,1000);
+	//ocStart(OC_2);
+	//ocStart(OC_3);
+	//ocStart(OC_4);
+
+	softCntTestID = softCntInit(softCntTestPeriod, &softCntTestFlag, 0xFF, SOFT_CNT_RELOAD_EN+SOFT_CNT_TARGET_EN);
+	softCntStart(softCntTestID);
 
 	//SPI test
 
@@ -151,10 +148,30 @@ int main(void)
 	//* ----------- Loop forever ----------- *//
 	for (;;)
 	{
+		// -- Software Counter -- //
+		softCntEngine();
+		// ---------------------- //
+
+		// -- Real Time keeping -- //
+		rtTimeEngine();
+		// ----------------------- //
+
+		// -- COM wing handling -- //
+		comWingEngine(COM_WING_0);
+		comWingEngine(COM_WING_1);
+		// ----------------------- //
+
+		if (softCntTestFlag)
+		{
+			togglePIN(LED_R);
+			softCntTestFlag = 0;
+		}
+
 		//Set COM Dir to TX and Set STAT LED
 		setPIN(COM0_IO1);
 		setPIN(COM0_IO2);
-		
+
+		/*
 		if ((sysTick - ledSTRed) >= LED_R_SYSTICK_INTERVAL)
 		{
 			// -- Handle boundary -- //
@@ -219,9 +236,7 @@ int main(void)
 
 			
 		}
-		
-		uartSendByte(COM0_UART_ID,0x55);
-		
+		*/
 	}
 	//* ------------------------------------ *//
 }
@@ -242,31 +257,31 @@ U8 opioidInit(void)
 
 	// ====== µC Initialisation ====== //
 	// Reset the Port
-	LATA = BTN|OW_BUS;					//Button is active low and OW bus idle to HIGH
+	LATA = BTN|OW_BUS;						//Button is active low and OW bus idle to HIGH
 	LATB = 0;
 	LATC = 0;
-	LATD = LED_B|LED_R|LED_G|COM1_TX;	//LEDS are active low, TX idle to HIGH
+	LATD = LED_B|LED_R|LED_G|COM1_TX;				//LEDS are active low, TX idle to HIGH
 	LATE = 0;
-	LATF = COM0_TX;						//TX idle to HIGH
-	LATG = EXT0_TX|EXT1_TX;				//TX idle to HIGH
+	LATF = COM0_TX;							//TX idle to HIGH
+	LATG = EXT0_TX|EXT1_TX;						//TX idle to HIGH
 
 	// -- Set the IO direction -- //
 	TRISA = 0xFFFF;				
 	TRISB = 0xFFFF ^ (COM1_IO0|COM1_IO1|COM1_IO2);			//COM1 IOs are output
 	TRISC = 0xFFFF;
-	TRISD = 0xFFFF ^ (LED_R|LED_G|LED_B|COM0_IO2|COM0_IO1|COM0_IO0|COM0_MOSI|COM0_SCK|COM1_TX);		//LEDs are output, COM0 IOs are output, COM0 MOSI and SCK are output, COM1 TX is output
+	TRISD = 0xFFFF ^ (LED_R|LED_G|LED_B|COM0_IO2|COM0_IO1|COM0_IO0|COM0_MOSI|COM0_SCK|COM1_TX);	//LEDs are output, COM0 IOs are output, COM0 MOSI and SCK are output, COM1 TX is output
 	TRISE = 0xFFFF;
 	TRISF = 0xFFFF ^ (COM0_TX|COM1_MOSI|COM1_SCK);			//COM0 TX is output, COM1 MOSI and SCK are output
-	TRISG = 0xFFFF ^ (EXT0_TX|EXT1_TX);						//EXTs TX are output
+	TRISG = 0xFFFF ^ (EXT0_TX|EXT1_TX);				//EXTs TX are output
 	// -------------------------- //
 	
 	// -- Init the Interrupts -- //
 	INTEnableSystemMultiVectoredInt();
 
 	intFastSetPriority(COM0_IRQ0_INT_ID, 4);
-	//intSetExternalEdge(COM0_IRQ0_INT_IRQ, RISING);			//COM0 IRQ0 is Rising edge by default
+	//intSetExternalEdge(COM0_IRQ0_INT_IRQ, RISING);		//COM0 IRQ0 is Rising edge by default
 	intFastSetPriority(COM0_IRQ1_INT_ID, 4);
-	//intSetExternalEdge(COM0_IRQ1_INT_IRQ, RISING);			//COM0 IRQ1 is Rising edge by default
+	//intSetExternalEdge(COM0_IRQ1_INT_IRQ, RISING);		//COM0 IRQ1 is Rising edge by default
 	intFastSetPriority(COM0_SPI_INT_ID, 5);
 	intFastSetPriority(COM0_UART_INT_ID, 5);
 
@@ -274,11 +289,23 @@ U8 opioidInit(void)
 	intSetExternalEdge(EXT0_IRQ_INT_IRQ, RISING);			//EXT0 IRQ0 is Rising edge by default
 	intFastSetPriority(EXT0_UART_INT_ID, 3);
 	intFastSetPriority(BTN_INT_ID, 1);
-	intSetExternalEdge(BTN_INT_IRQ, FALLING);				//BTN Falling edge trigger
+	intSetExternalEdge(BTN_INT_IRQ, FALLING);			//BTN Falling edge trigger
 	intFastInit(BTN_INT_ID);
 
 	INTEnableInterrupts();
 	// ------------------------- //
+
+	// -- Init the ADC -- //
+	errorCode = adcSetSampleRate(ADC_1,100000);
+	if (errorCode != STD_EC_SUCCESS)
+		return errorCode;
+	errorCode = adcInit(ADC_1);
+	if (errorCode != STD_EC_SUCCESS)
+		return errorCode;
+	errorCode = adcCalibrate(ADC_1);
+	if (errorCode != STD_EC_SUCCESS)
+		return errorCode;
+	// ------------------ //
 
 	// -- Init the realTime system -- //
 	errorCode = realTimeInit(OPIOID_SYSTICK_VALUE);
@@ -298,14 +325,10 @@ U8 opioidInit(void)
 	if (errorCode != STD_EC_SUCCESS)
 		return errorCode;
 
-
 	//Init the COM SPI
 	spiSetConfig(COM0_SPI_ID,SPI_MODE_MASTER|SPI_ENHANCED_BUF|SPI_TX_BUF_INT_BUF_EMPTY|SPI_RX_BUF_INT_BUF_HALF_FULL);
 	spiSetBaudRate(COM0_SPI_ID,5000000);
 	spiStart(COM0_SPI_ID);
-
-	//Detect presence
-
 	// ------------------------- //
 
 	// -- COM1 Initialisation -- //
@@ -321,23 +344,16 @@ U8 opioidInit(void)
 	spiSetConfig(COM1_SPI_ID,SPI_MODE_MASTER|SPI_ENHANCED_BUF|SPI_TX_BUF_INT_BUF_EMPTY|SPI_RX_BUF_INT_BUF_HALF_FULL);
 	spiSetBaudRate(COM0_SPI_ID,5000000);
 	spiStart(COM0_SPI_ID);
-
-	//Detect presence
-
 	// ------------------------- //
 
 
 	// -- EXT0 Initialisation -- //
 	//Init the EXT Uart
 
-	//Detect presence
-
 	// ------------------------- //
 
 	// -- EXT1 Initialisation -- //
 	//Init the EXT Uart
-
-	//Detect presence
 
 	// ------------------------- //
 	// ===================================== //
@@ -444,16 +460,24 @@ void __ISR(RT_TIMER_VECTOR, IPL7SOFT) rtTimerISR(void)
 
 void __ISR(BTN_VECTOR, IPL1SOFT) btnISR(void)
 {
-	spiStartTransaction(&COM0ControlTransaction);
+	//spiStartTransaction(&COM0ControlTransaction);
+	softCntUpdatePeriod(softCntTestID, softCntTestPeriod += 100);
 	
 	// clear the interrupt flag
-	intFastClearFlag(INT_EXT_INT_0);
+	intFastClearFlag(BTN_INT_ID);
 }
 
 void __ISR(COM0_SPI_VECTOR, IPL5SOFT) com0spiISR(void)
 {
-	spiMasterEngine(COM0_SPI_ID,intFastCheckFlag(COM0_SPI_INT_ID));
+	spiMasterISR(COM0_SPI_ID,intFastCheckFlag(COM0_SPI_INT_ID));
 
 	intFastClearFlag(COM0_SPI_INT_ID);
+}
+
+void __ISR(INT_VEC_ADC_1, IPL2SOFT) adc1ISR(void)
+{
+	adcISR(ADC_1);
+
+	intFastClearFlag(INT_ADC_1);
 }
 // ############################################## //
