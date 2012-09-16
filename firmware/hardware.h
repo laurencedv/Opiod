@@ -40,7 +40,7 @@
 // --------------- //
 
 // -- RAM -- //
-#define HEAP_SIZE	8192				//Initial Heap size in byte
+#define HEAP_SIZE	8192				//Heap size in byte
 // --------- //
 
 // -- DMA -- //

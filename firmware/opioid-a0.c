@@ -48,11 +48,8 @@
 
 // ################## Defines ################### //
 //System
-#define OPIOID_SYSTICK_VALUE		1000				//Value of a sysTick (in µs)
-#define OPIUM_NODE_UID				0x0100000000000000	//Unique Identification number of the Node
-#define OPIUM_COM_UART_LOW_SPEED	100000				//COM's UART Baud Rate at low speed
-#define OPIUM_COM_UART_MEDIUM_SPEED	1000000				//COM's UART Baud Rate at medium speed
-#define OPIUM_COM_UART_HIGH_SPEED	10000000			//COM's UART Baud Rate at high speed
+
+#define OPIUM_NODE_UID			0x0100000000000000		//Unique Identification number of the Node
 
 //Test
 #define LED_R_SYSTICK_INTERVAL	10
@@ -157,6 +154,7 @@ int main(void)
 		// ----------------------- //
 
 		// -- COM wing handling -- //
+		comWingDetectionEngine();
 		comWingEngine(COM_WING_0);
 		comWingEngine(COM_WING_1);
 		// ----------------------- //
@@ -278,24 +276,18 @@ U8 opioidInit(void)
 	// -- Init the Interrupts -- //
 	INTEnableSystemMultiVectoredInt();
 
-	intFastSetPriority(COM0_IRQ0_INT_ID, 4);
-	//intSetExternalEdge(COM0_IRQ0_INT_IRQ, RISING);		//COM0 IRQ0 is Rising edge by default
-	intFastSetPriority(COM0_IRQ1_INT_ID, 4);
-	//intSetExternalEdge(COM0_IRQ1_INT_IRQ, RISING);		//COM0 IRQ1 is Rising edge by default
-	intFastSetPriority(COM0_SPI_INT_ID, 5);
-	intFastSetPriority(COM0_UART_INT_ID, 5);
-
-	intFastSetPriority(EXT0_IRQ_INT_ID, 2);
+	intFastSetPriority(EXT0_IRQ_INT_ID, 3);
 	intSetExternalEdge(EXT0_IRQ_INT_IRQ, RISING);			//EXT0 IRQ0 is Rising edge by default
-	intFastSetPriority(EXT0_UART_INT_ID, 3);
+	intFastSetPriority(EXT0_UART_INT_ID, 4);
 	intFastSetPriority(BTN_INT_ID, 1);
 	intSetExternalEdge(BTN_INT_IRQ, FALLING);			//BTN Falling edge trigger
 	intFastInit(BTN_INT_ID);
 
-	INTEnableInterrupts();
+	intFastEnableGlobal();
 	// ------------------------- //
 
 	// -- Init the ADC -- //
+	adcSetInput(VIN_SENSE_AN_MUX+COM0_ID_AN_MUX+COM1_ID_AN_MUX);
 	errorCode = adcSetSampleRate(ADC_1,100000);
 	if (errorCode != STD_EC_SUCCESS)
 		return errorCode;
@@ -305,10 +297,12 @@ U8 opioidInit(void)
 	errorCode = adcCalibrate(ADC_1);
 	if (errorCode != STD_EC_SUCCESS)
 		return errorCode;
+	intFastSetPriority(INT_ADC_1, 2);
+	intFastInit(INT_ADC_1);
 	// ------------------ //
 
 	// -- Init the realTime system -- //
-	errorCode = realTimeInit(OPIOID_SYSTICK_VALUE);
+	errorCode = realTimeInit(OPIUM_SYSTICK_VALUE);
 	if (errorCode != STD_EC_SUCCESS)
 		return errorCode;
 	// ------------------------------ //
@@ -317,14 +311,6 @@ U8 opioidInit(void)
 
 	// ====== External Initialization ====== //
 	// -- COM0 Initialisation -- //
-	//Init the COM Uart
-	errorCode = uartInit(COM0_UART_ID,UART_TX_INT_TSR_EMPTY|UART_RX_INT_DATA_READY|UART_MODE_8N1);
-	if (errorCode == STD_EC_SUCCESS)
-		errorCode = uartSetBaudRate(COM0_UART_ID,OPIUM_COM_UART_LOW_SPEED);
-
-	if (errorCode != STD_EC_SUCCESS)
-		return errorCode;
-
 	//Init the COM SPI
 	spiSetConfig(COM0_SPI_ID,SPI_MODE_MASTER|SPI_ENHANCED_BUF|SPI_TX_BUF_INT_BUF_EMPTY|SPI_RX_BUF_INT_BUF_HALF_FULL);
 	spiSetBaudRate(COM0_SPI_ID,5000000);
@@ -332,14 +318,6 @@ U8 opioidInit(void)
 	// ------------------------- //
 
 	// -- COM1 Initialisation -- //
-	//Init the COM Uart
-	errorCode = uartInit(COM1_UART_ID,UART_TX_INT_TSR_EMPTY|UART_RX_INT_DATA_READY|UART_MODE_8N1);
-	if (errorCode == STD_EC_SUCCESS)
-		errorCode = uartSetBaudRate(COM1_UART_ID,OPIUM_COM_UART_MEDIUM_SPEED);
-
-	if (errorCode != STD_EC_SUCCESS)
-		return errorCode;
-
 	//Init the COM SPI
 	spiSetConfig(COM1_SPI_ID,SPI_MODE_MASTER|SPI_ENHANCED_BUF|SPI_TX_BUF_INT_BUF_EMPTY|SPI_RX_BUF_INT_BUF_HALF_FULL);
 	spiSetBaudRate(COM0_SPI_ID,5000000);
@@ -364,7 +342,8 @@ U8 opioidInit(void)
 
 
 // ################# Interrupt ################## //
-
+//* ==== COM WING 0 ==== *//
+// UART
 void __ISR(COM0_UART_VECTOR, IPL5SOFT) com0uartISR(void)
 {
 	extern tRBufCtl * uartRxBuf[];
@@ -451,22 +430,7 @@ void __ISR(COM0_UART_VECTOR, IPL5SOFT) com0uartISR(void)
 	// ===================== //
 }
 
-void __ISR(RT_TIMER_VECTOR, IPL7SOFT) rtTimerISR(void)
-{
-	rtISR();
-
-	intFastClearFlag(RT_TIMER_INT_ID);
-}
-
-void __ISR(BTN_VECTOR, IPL1SOFT) btnISR(void)
-{
-	//spiStartTransaction(&COM0ControlTransaction);
-	softCntUpdatePeriod(softCntTestID, softCntTestPeriod += 100);
-	
-	// clear the interrupt flag
-	intFastClearFlag(BTN_INT_ID);
-}
-
+// SPI
 void __ISR(COM0_SPI_VECTOR, IPL5SOFT) com0spiISR(void)
 {
 	spiMasterISR(COM0_SPI_ID,intFastCheckFlag(COM0_SPI_INT_ID));
@@ -474,10 +438,178 @@ void __ISR(COM0_SPI_VECTOR, IPL5SOFT) com0spiISR(void)
 	intFastClearFlag(COM0_SPI_INT_ID);
 }
 
+// Timer
+void __ISR(COM0_TIMER_VECTOR, IPL5SOFT) com0timerISR(void)
+{
+
+	intFastClearFlag(COM0_TIMER_INT_ID);
+}
+
+// IRQ pin 0 and 1 for COM 0 and 1
+void __ISR(COM0_IRQ0_VECTOR, IPL6SOFT) com0irq0ISR(void)
+{
+
+	intFastClearFlag(COM0_IRQ0_INT_ID);
+}
+
+//* ==== COM WING 1 ==== *//
+// UART
+void __ISR(COM1_UART_VECTOR, IPL5SOFT) com1uartISR(void)			//TODOOOOOO!!!!!
+{
+	extern tRBufCtl * uartRxBuf[];
+	extern tRBufCtl * uartTxBuf[];
+
+	U32 interruptCheck = intFastCheckFlag(INT_UART_1);			//Fetch the all the flags for UART_1
+	U16 byteNb;
+	U8 tempBuf[8];
+	togglePIN(LED_R);
+
+	// === RX Interrupt ==== //
+	if (interruptCheck & INT_MASK_UART_RX)
+	{
+		// -- Empty the buffer -- //
+		while (U1STAbits.URXDA)
+		{
+			// Discard if error detected
+			if (U1STA & (UART_MASK_PERR|UART_MASK_FERR))
+				U1RXREG;
+			//Save if the data is valid
+			else
+				tempBuf[byteNb] = U1RXREG;
+
+			byteNb++;
+		}
+		// ---------------------- //
+
+		// -- Save to the buffer -- //
+		rBufPushU8(uartRxBuf[UART_1], (void*)tempBuf, byteNb, RBUF_FREERUN_PTR);	//Can loose data if the buffer is full
+		// ------------------------ //
+
+		intFastClearFlag(INT_UART_1_RX);
+	}
+	// ===================== //
+
+	// === TX Interrupt ==== //
+	if (interruptCheck & INT_MASK_UART_TX)
+	{
+		//Check for pending data
+		byteNb = rBufGetUsedSpace(uartTxBuf[UART_1]);
+
+		// -- No more byte to send --- //
+		if (!byteNb)
+			clearBIT(U1STA,UTXEN_MASK);		//Stop the transmitter
+		// -- Send the pending data -- //
+		else
+		{
+			if (byteNb > UART_FIFO_LVL)			//If there is more byte that the HW buffer can
+				byteNb = UART_FIFO_LVL;			//contain, load the maximum
+
+			//Pull the correct number of byte from the soft buffer into the HW buffer
+			rBufPullU8(uartTxBuf[UART_1], (void*)&U1TXREG, byteNb, RBUF_FIXED_PTR);
+		}
+		// --------------------------- //
+
+		intFastClearFlag(INT_UART_1_TX);
+	}
+	// ===================== //
+
+	// === ERR Interrupt === //
+	if (interruptCheck & INT_MASK_UART_ERR)
+	{
+		// -- Overrun Error -- //
+		if (U1STAbits.OERR)
+		{
+			//Read all the HW buffer
+
+			//Clear the error flag
+		}
+		// -- Framing Error -- //
+		else if (U1STAbits.FERR)
+		{
+			//Clear the error flag
+		}
+		else
+		// -- Parity Error --- //
+		{
+			//Clear the error flag
+		}
+		// ------------------- //
+
+		intFastClearFlag(INT_UART_1_ERR);
+	}
+	// ===================== //
+}
+
+// SPI
+void __ISR(COM1_SPI_VECTOR, IPL5SOFT) com1spiISR(void)
+{
+	spiMasterISR(COM1_SPI_ID,intFastCheckFlag(COM1_SPI_INT_ID));
+
+	intFastClearFlag(COM1_SPI_INT_ID);
+}
+
+// Timer
+void __ISR(COM1_TIMER_VECTOR, IPL5SOFT) com1timerISR(void)
+{
+
+	intFastClearFlag(COM1_TIMER_INT_ID);
+}
+
+//* ==== EXT WING 0 ==== *//
+// UART
+void __ISR(EXT0_UART_VECTOR, IPL4SOFT) ext0uartISR(void)
+{
+
+	intFastClearFlag(EXT0_UART_INT_ID);
+}
+
+// IRQ pin
+void __ISR(EXT0_IRQ_VECTOR, IPL3SOFT) ext0irqISR(void)
+{
+
+	intFastClearFlag(EXT0_IRQ_INT_ID);
+}
+
+//* ==== EXT WING 1 ==== *//
+// UART
+void __ISR(EXT1_UART_VECTOR, IPL4SOFT) ext1uartISR(void)
+{
+
+	intFastClearFlag(EXT1_UART_INT_ID);
+}
+
+// IRQ pin
+void __ISR(EXT1_IRQ_VECTOR, IPL3SOFT) ext1irqISR(void)
+{
+
+	intFastClearFlag(EXT1_IRQ_INT_ID);
+}
+
+//* ==== SYSTEM ======== *//
+// Button
+void __ISR(BTN_VECTOR, IPL1SOFT) btnISR(void)
+{
+	//spiStartTransaction(&COM0ControlTransaction);
+	softCntUpdatePeriod(softCntTestID, softCntTestPeriod += 100);
+
+	// clear the interrupt flag
+	intFastClearFlag(BTN_INT_ID);
+}
+
+// ADC 1
 void __ISR(INT_VEC_ADC_1, IPL2SOFT) adc1ISR(void)
 {
 	adcISR(ADC_1);
 
 	intFastClearFlag(INT_ADC_1);
 }
+
+// Real Time System
+void __ISR(RT_TIMER_VECTOR, IPL7SOFT) rtTimerISR(void)
+{
+	rtISR();
+
+	intFastClearFlag(RT_TIMER_INT_ID);
+}
+//* ==================== *//
 // ############################################## //
